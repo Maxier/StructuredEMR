@@ -1,0 +1,5 @@
+hardware:
+  use_gpu: true  # 设置是否使用 GPU，值为 true 使用 GPU，false 使用 CPU
+document:
+  document_type: 1
+
