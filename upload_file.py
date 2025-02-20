@@ -11,8 +11,11 @@ from medical_record import process_text
 from admission_medical_record import process_medical_text
 from fastapi import APIRouter
 from logger_config import logger
+from chat import chat_with_model
 import numpy as np
 
+class ChatMessage(BaseModel):
+    message: str
 
 # 读取配置文件
 def load_config():
@@ -44,6 +47,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 用于处理不同格式的文件
 def extract_text_from_pdf(filepath: str) -> str:
+    if not os.path.exists(filepath):
+        logger.info(f"The file {filepath} does not exist.")
     text = ""
     with pdfplumber.open(filepath) as pdf:
         for page in pdf.pages:
@@ -61,7 +66,6 @@ def extract_text_from_image(filepath: str) -> str:
 
     # 使用 PaddleOCR 处理
     result = ocr.ocr(image_np, cls=True)
-
     extracted_text = ""
     for block in result:
         for line in block:
@@ -158,4 +162,27 @@ async def upload_file(file: UploadFile = File(...), document_type: int = 0):
         return {"status": "success", "data": structured_result}
     except Exception as e:
         logger.error(f"处理文件时出错: {str(e)}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@router.post("/chat/")
+async def chat_with_frontend(chat_data: ChatMessage):
+    """
+    前端发送消息并获取大模型的回复。
+    :param chat_data: 包含消息的请求体
+    :return: 大模型的回复
+    """
+    try:
+        message = chat_data.message
+        logger.info(f"收到前端消息: {message}")
+
+        # 调用 chat.py 中的 chat_with_model 函数
+        model_response = chat_with_model(message)
+
+        logger.info(f"大模型回应: {model_response}")
+
+        # 返回大模型的回应给前端
+        return {"status": "success", "message": model_response}
+
+    except Exception as e:
+        logger.error(f"处理消息时出错: {str(e)}", exc_info=True)
         return {"status": "error", "message": str(e)}
